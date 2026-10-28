@@ -1,0 +1,182 @@
+# API contract
+
+Every URL the frontend calls, who may call it, what it sends and what it returns.
+Backend and frontend are built against this list, so a change here is agreed first and then made on both sides.
+
+## Conventions
+
+- URLs name things, in the plural: `/api/books`, `/api/loans`.
+- The ID of one thing goes in the path: `/api/loans/12`.
+- Filters go in the query string: `/api/loans?status=overdue`.
+- **Who is asking comes from the sign-in, never from the URL.** The same `GET /api/loans` returns every loan to a librarian and only their own loans to a student.
+- History is changed, never deleted: returning a book or cancelling a hold is a `PATCH`, not a `DELETE`.
+- Requests and responses are JSON.
+
+### Who may call it
+
+| Mark | Meaning |
+|---|---|
+| anyone | No sign-in needed |
+| student | A signed-in student |
+| librarian | A signed-in librarian |
+| both | Any signed-in user |
+
+### Errors
+
+Every error has the same shape:
+
+```json
+{ "message": "Borrowing is blocked: loan 4 is 40 days overdue and unpaid." }
+```
+
+| Status | When |
+|---|---|
+| 401 | Not signed in |
+| 403 | Signed in, but the wrong role |
+| 404 | The thing does not exist |
+| 409 | Refused by a library rule (limit reached, borrowing blocked, copy already out) |
+| 422 | Missing or invalid input; the response also lists the bad fields |
+
+## 1. Sign-in
+
+Sign-in uses a **session cookie** (Laravel Sanctum). After login the browser sends the cookie with every request automatically; the frontend never stores a password or token.
+
+| Endpoint | Who | Does |
+|---|---|---|
+| `GET /sanctum/csrf-cookie` | anyone | Sets the CSRF cookie. Call once before login or register. |
+| `POST /api/auth/register` | anyone | Creates a student account with status `pending` |
+| `POST /api/auth/login` | anyone | Signs in; refused unless the account is `active` |
+| `POST /api/auth/logout` | both | Signs out |
+| `GET /api/me` | both | Own account, active card, and whether borrowing is blocked |
+| `PATCH /api/me` | both | Change phone or password |
+
+`POST /api/auth/register`
+```json
+{ "name": "Rahim Ahmed", "email": "rahim@northsouth.edu", "password": "…",
+  "student_no": "2211000042", "phone": "01710000002" }
+```
+Returns `201` with the new account (`"status": "pending"`).
+
+`POST /api/auth/login`
+```json
+{ "email": "rahim@northsouth.edu", "password": "…" }
+```
+Returns `200` with the account, or `401` for a wrong password, or `403` if the account is pending or suspended.
+
+`GET /api/me`
+```json
+{ "account_id": 2, "name": "Rahim Ahmed", "role": "student", "status": "active",
+  "card": { "card_no": "LIB-0002", "expires_on": "2027-04-11" },
+  "open_loans": 2, "borrowing_blocked": false }
+```
+
+## 2. Members and cards
+
+| Endpoint | Who | Does |
+|---|---|---|
+| `GET /api/accounts?status=pending` | librarian | List members; filter by `status` or `role` |
+| `GET /api/accounts/7` | librarian | One member, with cards, open loans and unpaid fines |
+| `PATCH /api/accounts/7` | librarian | `{ "status": "active" }`: approve, suspend or deactivate |
+| `POST /api/accounts/7/cards` | librarian | Issues a new card; an existing active card becomes `replaced` |
+| `PATCH /api/me/card` | student | `{ "status": "lost" }`: report the card lost |
+| `GET /api/cards?status=lost` | librarian | Lost cards waiting for a new one |
+
+Deactivating a member with books still out returns `409`.
+
+## 3. Catalogue
+
+| Endpoint | Who | Does |
+|---|---|---|
+| `GET /api/books?q=&genre=` | both | Search and browse (keyword search for now) |
+| `GET /api/books/5` | both | One book: details, authors, copies, expected return date if every copy is out, number of holds |
+| `GET /api/isbn/9780547928227` | librarian | Looks the ISBN up on Open Library to fill the form; saves nothing |
+| `POST /api/books` | librarian | Adds a book |
+| `PATCH /api/books/5` | librarian | Edits a book |
+| `DELETE /api/books/5` | librarian | Only if no copy was ever lent; otherwise `409` |
+| `POST /api/books/5/copies` | librarian | Adds a copy: `{ "barcode": "C0050", "shelf_mark": "FA-01" }` |
+| `PATCH /api/copies/30` | librarian | Changes the shelf mark, or `{ "status": "withdrawn" }`; a copy on loan cannot be withdrawn (`409`) |
+| `GET /api/authors`, `GET /api/genres` | both | Lists for filters and forms |
+| `POST /api/authors`, `PATCH /api/authors/3` | librarian | Adds or renames an author |
+| `POST /api/genres`, `PATCH /api/genres/2` | librarian | Adds or renames a genre |
+
+`GET /api/books` (already built)
+```json
+[ { "book_id": 8, "title": "The Hobbit", "title_banglish": null, "published_year": 1937,
+    "genre": "Fantasy", "authors": "J. R. R. Tolkien", "total_copies": 2, "available_copies": 0 } ]
+```
+
+`POST /api/books`
+```json
+{ "isbn": "9780547928227", "title": "The Hobbit", "title_banglish": null,
+  "publisher": "Houghton Mifflin", "published_year": 1937, "genre_id": 8,
+  "description": "…", "author_ids": [7] }
+```
+
+## 4. Loans
+
+| Endpoint | Who | Does |
+|---|---|---|
+| `POST /api/loans` | librarian | Issues a book |
+| `PATCH /api/loans/12/return` | librarian | Returns a book |
+| `PATCH /api/loans/12/renewal` | student | Asks to renew (own loan only) |
+| `PATCH /api/loans/12/renewal/verdict` | librarian | `{ "decision": "approved" }` or `"declined"` |
+| `GET /api/loans` | both | Students get their own loans; librarians get all |
+
+Filters for `GET /api/loans`: `status=open|overdue|returned|due_soon`, `renewal=requested`, and for librarians `account_id=7`.
+
+`POST /api/loans`
+```json
+{ "copy_barcode": "C0014", "student_no": "2211000045" }
+```
+Runs as **one transaction**: locks the student's account row, then checks that the account is active, no loan is 31+ days overdue and unpaid, fewer than 3 books are out, and the copy is available. Returns `201` with the loan (`due_date` = today + 14 days), or `409` naming the rule that failed.
+
+`PATCH /api/loans/12/return`: sets `returned_at`. The copy goes back on the shelf, or to `ready` for the first hold in the queue. Returns the loan with any fine from the view.
+
+`PATCH /api/loans/12/renewal`: allowed once, while the loan is open and not overdue; sets `renewal_status` to `requested`.
+
+`PATCH /api/loans/12/renewal/verdict`: `approved` adds 14 days to `due_date` and sets `renewal_count` to 1. The response says how many holds the book has, so the librarian can see if someone is waiting.
+
+## 5. Holds
+
+| Endpoint | Who | Does |
+|---|---|---|
+| `POST /api/holds` | student | `{ "book_id": 9 }`: joins the queue (only when no copy is available) |
+| `PATCH /api/holds/4` | student | `{ "status": "cancelled" }`: leaves the queue (own hold only) |
+| `GET /api/holds?book_id=9` | both | Students get their own holds; librarians get all |
+
+## 6. Fines
+
+| Endpoint | Who | Does |
+|---|---|---|
+| `GET /api/fines?status=unpaid` | both | Reads the `loan_fine_status` view. Students see their own; librarians see all. `status=unpaid|paid|blocking` |
+| `POST /api/fines` | librarian | Records a payment: `{ "loan_id": 4 }` |
+
+The page never sends an amount. The server reads the amount from `loan_fine_status` (100, 200 or 300 Tk) and saves it, with the librarian as `received_by`. Paying a loan that is already paid returns `409`.
+
+```json
+{ "loan_id": 4, "account_id": 5, "name": "Sadia Islam", "days_overdue": 40,
+  "fine_amount": 300, "is_paid": false, "blocks_borrowing": true }
+```
+
+## 7. Smart Discovery (later)
+
+| Endpoint | Who | Does |
+|---|---|---|
+| `GET /api/books?q=…&mode=meaning` | both | Search by what a book is about |
+| `GET /api/books/5/similar` | both | Read-alikes |
+| `GET /api/recommendations` | student | Suggestions from borrowing history, limited to copies on the shelf |
+
+## Branches
+
+Each area is built on its own branch and merged into `main` through a reviewed pull request.
+
+| Branch | Sections |
+|---|---|
+| `feature/auth` | 1 |
+| `feature/members-cards` | 2 |
+| `feature/catalogue` | 3 |
+| `feature/loans` | 4 |
+| `feature/holds-fines` | 5, 6 |
+| `feature/discovery` | 7 |
+
+Sign-in (`feature/auth`) is needed by every other area to know who is asking. Until it is merged, other branches can test with a fixed account.
