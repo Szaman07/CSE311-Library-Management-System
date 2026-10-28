@@ -589,7 +589,7 @@
               }
             ],
             "url": "{{baseUrl}}/api/books/31",
-            "description": "Who may call it: librarian. Book 31 is the one made by Add book. A book whose copies were lent gives 409 (try book 8)."
+            "description": "Who may call it: librarian. Answers 204 with no body. Book 31 is the one made by Add book. A book that was lent gives 409 (try book 8)."
           }
         },
         {
@@ -927,7 +927,7 @@
               }
             ],
             "url": "{{baseUrl}}/api/loans/1/renewal",
-            "description": "Who may call it: student. Seed: loan 1 is Rahim's, not yet due."
+            "description": "Who may call it: student. Seed: loan 1 is Rahim's, not yet due: sign in as rahim@northsouth.edu first. Another student gets 404."
           }
         },
         {
@@ -1059,10 +1059,10 @@
               }
             ],
             "url": "{{baseUrl}}/api/holds",
-            "description": "Who may call it: student. Seed: every copy of book 9 is out.",
+            "description": "Who may call it: student. Seed: book 30 (Lalsalu) has no copy on the shelf. A book with a copy on the shelf gives 409.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"book_id\": 9\n}",
+              "raw": "{\n  \"book_id\": 30\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1093,8 +1093,8 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/api/holds/1",
-            "description": "Who may call it: student.",
+            "url": "{{baseUrl}}/api/holds/3",
+            "description": "Who may call it: student. Hold 3 is the one made by Place a hold (after a reset). Use the hold_id from its answer.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"cancelled\"\n}",

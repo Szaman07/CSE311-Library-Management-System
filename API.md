@@ -91,7 +91,7 @@ Returns `200` with the account, or `401` for a wrong password, or `403` if the a
 | `PATCH /api/me/card` | student | `{ "status": "lost" }`: report the card lost |
 | `GET /api/cards?status=lost` | librarian | Lost cards waiting for a new one |
 
-Deactivating a member with books still out returns `409`.
+Deactivating a member with books still out returns `409`. Card numbers look like `LIB-0010-1`: the member's number, then which card it is. Only `active` members get a card.
 
 ## 3. Catalogue
 
@@ -99,10 +99,10 @@ Deactivating a member with books still out returns `409`.
 |---|---|---|
 | `GET /api/books?q=&genre=` | both | Search and browse (keyword search for now) |
 | `GET /api/books/5` | both | One book: details, authors, copies, expected return date if every copy is out, number of holds |
-| `GET /api/isbn/9780547928227` | librarian | Looks the ISBN up on Open Library to fill the form; saves nothing |
+| `GET /api/isbn/9780547928227` | librarian | Looks the ISBN up on Open Library to fill the form; saves nothing. `404` if Open Library does not know it |
 | `POST /api/books` | librarian | Adds a book |
 | `PATCH /api/books/5` | librarian | Edits a book |
-| `DELETE /api/books/5` | librarian | Only if no copy was ever lent; otherwise `409` |
+| `DELETE /api/books/5` | librarian | Answers `204` with no body. Only if no copy was ever lent; otherwise `409` |
 | `POST /api/books/5/copies` | librarian | Adds a copy: `{ "barcode": "C0050", "shelf_mark": "FA-01" }` |
 | `PATCH /api/copies/30` | librarian | Changes the shelf mark, or `{ "status": "withdrawn" }`; a copy on loan cannot be withdrawn (`409`) |
 | `GET /api/authors`, `GET /api/genres` | both | Lists for filters and forms |
@@ -113,6 +113,12 @@ Deactivating a member with books still out returns `409`.
 ```json
 [ { "book_id": 8, "title": "The Hobbit", "title_banglish": null, "published_year": 1937,
     "genre": "Fantasy", "authors": "J. R. R. Tolkien", "total_copies": 2, "available_copies": 0 } ]
+```
+
+`GET /api/isbn/9780547928227` (Open Library has no description; the librarian types one)
+```json
+{ "isbn": "9780547928227", "title": "The Hobbit", "authors": ["J.R.R. Tolkien"],
+  "publisher": "Mariner Books", "published_year": 2012, "subjects": ["..."], "cover": "https://..." }
 ```
 
 `POST /api/books`
@@ -132,7 +138,7 @@ Deactivating a member with books still out returns `409`.
 | `PATCH /api/loans/12/renewal/verdict` | librarian | `{ "decision": "approved" }` or `"declined"` |
 | `GET /api/loans` | both | Students get their own loans; librarians get all |
 
-Filters for `GET /api/loans`: `status=open|overdue|returned|due_soon`, `renewal=requested`, and for librarians `account_id=7`.
+Filters for `GET /api/loans`: `status=open|overdue|returned|due_soon`, `renewal=requested`, and for librarians `account_id=7`. Each loan includes `waiting`: how many students have a hold on that book, so the librarian can see it before answering a renewal.
 
 `POST /api/loans`
 ```json
@@ -144,7 +150,7 @@ Runs as **one transaction**: locks the student's account row, then checks that t
 
 `PATCH /api/loans/12/renewal`: allowed once, while the loan is open and not overdue; sets `renewal_status` to `requested`.
 
-`PATCH /api/loans/12/renewal/verdict`: `approved` adds 14 days to `due_date` and sets `renewal_count` to 1. The response says how many holds the book has, so the librarian can see if someone is waiting.
+`PATCH /api/loans/12/renewal/verdict`: `approved` adds 14 days to `due_date` and sets `renewal_count` to 1. Returns the loan, or `409` if no request is waiting.
 
 ## 5. Holds
 
