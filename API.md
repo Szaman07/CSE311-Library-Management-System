@@ -49,11 +49,10 @@ While developing (`APP_DEBUG=true` in `.env`), errors also carry `exception`, `f
 
 ## 1. Sign-in
 
-Sign-in uses a **session cookie** (Laravel Sanctum). After login the browser sends the cookie with every request automatically; the frontend never stores a password or token.
+Sign-in uses a **token** (Laravel Sanctum). Login answers a token; every later request sends it in the header `Authorization: Bearer <token>`. Logout deletes it. The frontend keeps the token in `localStorage` (see `frontend/src/api.ts`); Postman keeps it in the `{{token}}` variable.
 
 | Endpoint | Who | Does |
 |---|---|---|
-| `GET /sanctum/csrf-cookie` | anyone | Sets the CSRF cookie. Call once before login or register. |
 | `POST /api/auth/register` | anyone | Creates a student account with status `pending` |
 | `POST /api/auth/login` | anyone | Signs in; refused unless the account is `active` |
 | `POST /api/auth/logout` | both | Signs out |
@@ -71,7 +70,7 @@ Returns `201` with the new account (`"status": "pending"`).
 ```json
 { "email": "rahim@northsouth.edu", "password": "…" }
 ```
-Returns `200` with the account, or `401` for a wrong password, or `403` if the account is pending or suspended.
+Returns `200` with `{ "token": "1|abc…", "account": { … } }`, or `401` for a wrong password, or `403` if the account is pending or suspended. Changing the password with `PATCH /api/me` signs out every other device (their tokens are deleted).
 
 `GET /api/me`
 ```json
@@ -91,7 +90,7 @@ Returns `200` with the account, or `401` for a wrong password, or `403` if the a
 | `PATCH /api/me/card` | student | `{ "status": "lost" }`: report the card lost |
 | `GET /api/cards?status=lost` | librarian | Lost cards waiting for a new one |
 
-Deactivating a member with books still out returns `409`. Card numbers look like `LIB-0010-1`: the member's number, then which card it is. Only `active` members get a card.
+Deactivating a member with books still out or unpaid fines returns `409`. Librarian accounts cannot be changed through the API (`409`); they are managed in the database. Card numbers look like `LIB-0010-1`: the member's number, then which card it is. Only `active` students get a card.
 
 ## 3. Catalogue
 
@@ -144,7 +143,7 @@ Filters for `GET /api/loans`: `status=open|overdue|returned|due_soon`, `renewal=
 ```json
 { "copy_barcode": "C0014", "student_no": "2211000045" }
 ```
-Runs as **one transaction**: locks the student's account row, then checks that the account is active, no loan is 31+ days overdue and unpaid, fewer than 3 books are out, and the copy is available. Returns `201` with the loan (`due_date` = today + 14 days), or `409` naming the rule that failed. If the student had a hold on this book, it becomes `fulfilled`.
+Runs as **one transaction**: locks the student's account row, then checks that the account is active, no loan is 31+ days overdue and unpaid, fewer than 3 books are out, and the copy is available. Returns `201` with the loan (`due_date` = today + 14 days), or `409` naming the rule that failed. If the student had a hold on this book, it becomes `fulfilled`. If that was the last copy on the shelf, other students' `ready` holds go back to `waiting`, so no one sees an out-of-date "a copy is back" notice.
 
 `PATCH /api/loans/12/return`: sets `returned_at` and puts the copy back on the shelf (`available`). Every `waiting` hold on that book becomes `ready`, which notifies those students. The copy is **not** kept for them: whoever comes to the desk first borrows it. Returns the loan.
 

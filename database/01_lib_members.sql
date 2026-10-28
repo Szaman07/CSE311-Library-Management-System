@@ -40,3 +40,20 @@ CREATE TABLE library_card (
   CHECK (expires_on > issued_on),
   FOREIGN KEY (account_id) REFERENCES account (account_id) ON DELETE RESTRICT
 );
+
+-- Sign-in tokens. Laravel Sanctum creates a row here at every login and deletes it at
+-- logout; the frontend sends the token with each request. Laravel fills every column.
+CREATE TABLE personal_access_tokens (
+  id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  tokenable_type  VARCHAR(255) NOT NULL,      -- always App\Models\Account here
+  tokenable_id    BIGINT UNSIGNED NOT NULL,   -- the account_id
+  name            TEXT NOT NULL,
+  token           VARCHAR(64) NOT NULL UNIQUE,  -- a hash of the token, never the token itself
+  abilities       TEXT NULL,
+  last_used_at    TIMESTAMP NULL,
+  expires_at      TIMESTAMP NULL,
+  created_at      TIMESTAMP NULL,
+  updated_at      TIMESTAMP NULL,
+  INDEX (tokenable_type, tokenable_id),
+  INDEX (expires_at)
+);

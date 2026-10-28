@@ -6,15 +6,15 @@ use App\Models\Account;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
     /**
-     * POST /api/auth/login
+     * POST /api/auth/login: answers a token, which every later request sends back.
      * Sends: { "email": "...", "password": "..." }
+     * Answers: { "token": "...", "account": { ... } }
      */
     public function login(Request $request): JsonResponse
     {
@@ -23,29 +23,30 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
-        // Checks the email and password against lib_members.account.
-        if (! Auth::attempt($data)) {
+        // Hash::check compares the password with the stored bcrypt hash.
+        $account = Account::where('email', $data['email'])->first();
+        if (! $account || ! Hash::check($data['password'], $account->password_hash)) {
             abort(401, 'Wrong email or password.');
         }
 
-        $me = $request->user();
-
         // Only active accounts may sign in.
-        if ($me->status !== 'active') {
-            Auth::guard('web')->logout();
-            abort(403, 'This account is '.$me->status.'.');
+        if ($account->status !== 'active') {
+            abort(403, 'This account is '.$account->status.'.');
         }
-
-        // A new session id after login stops session fixation attacks.
-        $request->session()->regenerate();
 
         DB::connection('lib_members')->update(
             'UPDATE account SET last_login_at = NOW() WHERE account_id = ?',
-            [$me->account_id]
+            [$account->account_id]
         );
 
+        // A new token for this login. Laravel stores only a hash of it.
+        $token = $account->createToken('login')->plainTextToken;
+
         // refresh() reads the row again, so the answer shows the new last_login_at.
-        return response()->json($me->refresh());
+        return response()->json([
+            'token' => $token,
+            'account' => $account->refresh(),
+        ]);
     }
 
     /**
@@ -87,9 +88,8 @@ class AuthController extends Controller
      */
     public function logout(Request $request): Response
     {
-        Auth::guard('web')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        // Deletes the token this request was sent with, so it stops working.
+        $request->user()->currentAccessToken()->delete();
 
         return response()->noContent();
     }
@@ -150,6 +150,9 @@ class AuthController extends Controller
                 'UPDATE account SET password_hash = ? WHERE account_id = ?',
                 [Hash::make($data['password']), $me->account_id]
             );
+
+            // A new password signs out every other device: their tokens are deleted.
+            $me->tokens()->where('id', '!=', $me->currentAccessToken()->id)->delete();
         }
 
         return response()->json($me->refresh());

@@ -1,36 +1,26 @@
 {
   "info": {
     "name": "Library Management System API",
-    "description": "Every endpoint in API.md. Start MySQL in XAMPP and `php artisan serve` first. Once sign-in exists, send 1. Sign-in → Get CSRF cookie, then a Log in request. Each request says who may call it. Example IDs match the sample data in database/04_seed.sql; reload it with `bash database/reset.sh` after testing requests that change data.",
+    "description": "Every endpoint in API.md. Start MySQL in XAMPP and `php artisan serve` first. Send 1. Sign-in → Log in as librarian (or student) first: the token is saved and sent with every request. Each request says who may call it. Example IDs match the sample data in database/04_seed.sql; reload it with `bash database/reset.sh` after testing requests that change data.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
-  "event": [
-    {
-      "listen": "test",
-      "script": {
-        "type": "text/javascript",
-        "exec": [
-          "// Laravel sends a fresh XSRF-TOKEN cookie with its answers.",
-          "// Save it, so POST, PATCH and DELETE can send it back in the X-XSRF-TOKEN header.",
-          "const token = pm.cookies.get('XSRF-TOKEN');",
-          "if (token) {",
-          "  pm.collectionVariables.set('xsrfToken', decodeURIComponent(token));",
-          "}"
-        ]
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
       }
-    }
-  ],
+    ]
+  },
   "variable": [
     {
       "key": "baseUrl",
       "value": "http://localhost:8000"
     },
     {
-      "key": "frontendUrl",
-      "value": "http://localhost:5173"
-    },
-    {
-      "key": "xsrfToken",
+      "key": "token",
       "value": ""
     }
   ],
@@ -38,28 +28,6 @@
     {
       "name": "1. Sign-in",
       "item": [
-        {
-          "name": "Get CSRF cookie",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/sanctum/csrf-cookie",
-            "description": "Who may call it: anyone. Send this first, before Log in or Register. It answers 204 with no body; that is normal."
-          }
-        },
         {
           "name": "Log in as librarian",
           "request": {
@@ -70,20 +38,12 @@
                 "value": "application/json"
               },
               {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
             ],
             "url": "{{baseUrl}}/api/auth/login",
-            "description": "Who may call it: anyone. Signs in as Nusrat Jahan (librarian).",
+            "description": "Who may call it: anyone. Signs in as Nusrat Jahan (librarian). The answer's token is saved automatically and used by every request.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"librarian@northsouth.edu\",\n  \"password\": \"password\"\n}",
@@ -93,7 +53,22 @@
                 }
               }
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Keep the token from the login answer; every request sends it (collection Authorization).",
+                  "const r = pm.response.json();",
+                  "if (r.token) {",
+                  "  pm.collectionVariables.set('token', r.token);",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Log in as student",
@@ -103,14 +78,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               },
               {
                 "key": "Content-Type",
@@ -128,7 +95,22 @@
                 }
               }
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Keep the token from the login answer; every request sends it (collection Authorization).",
+                  "const r = pm.response.json();",
+                  "if (r.token) {",
+                  "  pm.collectionVariables.set('token', r.token);",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "My account",
@@ -138,14 +120,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/me",
@@ -160,14 +134,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               },
               {
                 "key": "Content-Type",
@@ -197,14 +163,6 @@
                 "value": "application/json"
               },
               {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -230,19 +188,22 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/auth/logout",
             "description": "Who may call it: both. Answers 204 with no body."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('token', '');"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -257,14 +218,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/accounts?status=pending",
@@ -279,14 +232,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/accounts/5",
@@ -301,14 +246,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               },
               {
                 "key": "Content-Type",
@@ -336,14 +273,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/accounts/10/cards",
@@ -358,14 +287,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               },
               {
                 "key": "Content-Type",
@@ -393,14 +314,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/cards?status=lost",
@@ -420,14 +333,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/books",
@@ -442,14 +347,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/books?q=tagore&genre=7",
@@ -464,14 +361,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/books/9",
@@ -486,14 +375,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/isbn/9780547928227",
@@ -508,14 +389,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               },
               {
                 "key": "Content-Type",
@@ -545,14 +418,6 @@
                 "value": "application/json"
               },
               {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -578,14 +443,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/books/31",
@@ -600,14 +457,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               },
               {
                 "key": "Content-Type",
@@ -637,14 +486,6 @@
                 "value": "application/json"
               },
               {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -670,14 +511,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/authors",
@@ -692,14 +525,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               },
               {
                 "key": "Content-Type",
@@ -729,14 +554,6 @@
                 "value": "application/json"
               },
               {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -762,14 +579,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/genres",
@@ -784,14 +593,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               },
               {
                 "key": "Content-Type",
@@ -819,14 +620,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               },
               {
                 "key": "Content-Type",
@@ -861,14 +654,6 @@
                 "value": "application/json"
               },
               {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -894,14 +679,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/loans/2/return",
@@ -916,14 +693,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/loans/1/renewal",
@@ -938,14 +707,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               },
               {
                 "key": "Content-Type",
@@ -973,14 +734,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/loans",
@@ -995,14 +748,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/loans?status=overdue",
@@ -1017,14 +762,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/loans?renewal=requested",
@@ -1044,14 +781,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               },
               {
                 "key": "Content-Type",
@@ -1081,14 +810,6 @@
                 "value": "application/json"
               },
               {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -1114,14 +835,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/holds?book_id=9",
@@ -1136,14 +849,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/holds?status=ready",
@@ -1163,14 +868,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/fines",
@@ -1185,14 +882,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/fines?status=unpaid",
@@ -1207,14 +896,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/fines?status=blocking",
@@ -1229,14 +910,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               },
               {
                 "key": "Content-Type",
@@ -1269,14 +942,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/books?q=boy adrift with a tiger&mode=meaning",
@@ -1291,14 +956,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/books/7/similar",
@@ -1313,14 +970,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Referer",
-                "value": "{{frontendUrl}}"
-              },
-              {
-                "key": "X-XSRF-TOKEN",
-                "value": "{{xsrfToken}}"
               }
             ],
             "url": "{{baseUrl}}/api/recommendations",
