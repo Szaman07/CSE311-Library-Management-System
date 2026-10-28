@@ -11,6 +11,7 @@ export default defineConfig({
     // Laravel on port 8000, so the browser never talks to another origin (no CORS).
     proxy: {
       '/api': 'http://localhost:8000',
+      '/sanctum': 'http://localhost:8000',
     },
   },
 })
