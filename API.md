@@ -10,7 +10,8 @@ Backend and frontend are built against this list, so a change here is agreed fir
 - Filters go in the query string: `/api/loans?status=overdue`.
 - **Who is asking comes from the sign-in, never from the URL.** The same `GET /api/loans` returns every loan to a librarian and only their own loans to a student.
 - History is changed, never deleted: returning a book or cancelling a hold is a `PATCH`, not a `DELETE`.
-- Requests and responses are JSON.
+- Requests and responses are JSON. Yes/no values come back as `1` and `0`, because that is how MariaDB returns them.
+- Every request sends the header `Accept: application/json`, so errors also come back as JSON.
 
 ### Who may call it
 
@@ -36,6 +37,15 @@ Every error has the same shape:
 | 404 | The thing does not exist |
 | 409 | Refused by a library rule (limit reached, borrowing blocked, copy already out) |
 | 422 | Missing or invalid input; the response also lists the bad fields |
+
+A 422 looks like this:
+
+```json
+{ "message": "The loan id field is required.",
+  "errors": { "loan_id": ["The loan id field is required."] } }
+```
+
+While developing (`APP_DEBUG=true` in `.env`), errors also carry `exception`, `file` and `trace` fields. Only `message` is part of the contract.
 
 ## 1. Sign-in
 
@@ -67,7 +77,7 @@ Returns `200` with the account, or `401` for a wrong password, or `403` if the a
 ```json
 { "account_id": 2, "name": "Rahim Ahmed", "role": "student", "status": "active",
   "card": { "card_no": "LIB-0002", "expires_on": "2027-04-11" },
-  "open_loans": 2, "borrowing_blocked": false }
+  "open_loans": 2, "borrowing_blocked": 0 }
 ```
 
 ## 2. Members and cards
@@ -128,9 +138,9 @@ Filters for `GET /api/loans`: `status=open|overdue|returned|due_soon`, `renewal=
 ```json
 { "copy_barcode": "C0014", "student_no": "2211000045" }
 ```
-Runs as **one transaction**: locks the student's account row, then checks that the account is active, no loan is 31+ days overdue and unpaid, fewer than 3 books are out, and the copy is available. Returns `201` with the loan (`due_date` = today + 14 days), or `409` naming the rule that failed.
+Runs as **one transaction**: locks the student's account row, then checks that the account is active, no loan is 31+ days overdue and unpaid, fewer than 3 books are out, and the copy is available. Returns `201` with the loan (`due_date` = today + 14 days), or `409` naming the rule that failed. If the student had a hold on this book, it becomes `fulfilled`.
 
-`PATCH /api/loans/12/return`: sets `returned_at`. The copy goes back on the shelf, or to `ready` for the first hold in the queue. Returns the loan with any fine from the view.
+`PATCH /api/loans/12/return`: sets `returned_at` and puts the copy back on the shelf (`available`). Every `waiting` hold on that book becomes `ready`, which notifies those students. The copy is **not** kept for them: whoever comes to the desk first borrows it. Returns the loan.
 
 `PATCH /api/loans/12/renewal`: allowed once, while the loan is open and not overdue; sets `renewal_status` to `requested`.
 
@@ -140,9 +150,20 @@ Runs as **one transaction**: locks the student's account row, then checks that t
 
 | Endpoint | Who | Does |
 |---|---|---|
-| `POST /api/holds` | student | `{ "book_id": 9 }`: joins the queue (only when no copy is available) |
-| `PATCH /api/holds/4` | student | `{ "status": "cancelled" }`: leaves the queue (own hold only) |
-| `GET /api/holds?book_id=9` | both | Students get their own holds; librarians get all |
+| `POST /api/holds` | student | `{ "book_id": 9 }`: asks to be told when a copy comes back (only when no copy is available) |
+| `PATCH /api/holds/4` | student | `{ "status": "cancelled" }`: no longer wants to be told (own hold only) |
+| `GET /api/holds?book_id=9` | both | Students get their own holds; librarians get all. Filter `status=waiting|ready` |
+
+A hold is a **notification only**. It does not reserve a copy.
+
+| Hold status | Meaning |
+|---|---|
+| `waiting` | Every copy is out; the student wants to know when one comes back |
+| `ready` | A copy was returned; the student's home page shows "A copy is back on the shelf" (`GET /api/holds?status=ready`) |
+| `fulfilled` | The student borrowed the book |
+| `cancelled` | The student cancelled the hold |
+
+Placing a hold returns `409` if a copy is on the shelf (borrow it instead) or if the student already has a `waiting` or `ready` hold on that book.
 
 ## 6. Fines
 
@@ -153,10 +174,14 @@ Runs as **one transaction**: locks the student's account row, then checks that t
 
 The page never sends an amount. The server reads the amount from `loan_fine_status` (100, 200 or 300 Tk) and saves it, with the librarian as `received_by`. Paying a loan that is already paid returns `409`.
 
+`GET /api/fines` returns a list of rows like this:
+
 ```json
 { "loan_id": 4, "account_id": 5, "name": "Sadia Islam", "days_overdue": 40,
-  "fine_amount": 300, "is_paid": false, "blocks_borrowing": true }
+  "fine_amount": 300, "is_paid": 0, "blocks_borrowing": 1 }
 ```
+
+`POST /api/fines` returns `201` with the loan's row from the view, now with `"is_paid": 1` and `"blocks_borrowing": 0`.
 
 ## 7. Smart Discovery (later)
 
@@ -180,3 +205,7 @@ Each area is built on its own branch and merged into `main` through a reviewed p
 | `feature/discovery` | 7 |
 
 Sign-in (`feature/auth`) is needed by every other area to know who is asking. Until it is merged, other branches can test with a fixed account.
+
+## Trying the endpoints
+
+Test endpoints with **Postman**. `postman/Library-API.postman_collection.json` has every endpoint above, ready to send, with example IDs that match the sample data. Import it with the **Import** button in Postman. The API guide (section 5) explains the steps, including signing in.

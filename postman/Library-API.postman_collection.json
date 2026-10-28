@@ -1,0 +1,1333 @@
+{
+  "info": {
+    "name": "Library Management System API",
+    "description": "Every endpoint in API.md. Start MySQL in XAMPP and `php artisan serve` first. Once sign-in exists, send 1. Sign-in → Get CSRF cookie, then a Log in request. Each request says who may call it. Example IDs match the sample data in database/04_seed.sql; reload it with `bash database/reset.sh` after testing requests that change data.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Laravel sends a fresh XSRF-TOKEN cookie with its answers.",
+          "// Save it, so POST, PATCH and DELETE can send it back in the X-XSRF-TOKEN header.",
+          "const token = pm.cookies.get('XSRF-TOKEN');",
+          "if (token) {",
+          "  pm.collectionVariables.set('xsrfToken', decodeURIComponent(token));",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "frontendUrl",
+      "value": "http://localhost:5173"
+    },
+    {
+      "key": "xsrfToken",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Sign-in",
+      "item": [
+        {
+          "name": "Get CSRF cookie",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/sanctum/csrf-cookie",
+            "description": "Who may call it: anyone. Send this first, before Log in or Register. It answers 204 with no body; that is normal."
+          }
+        },
+        {
+          "name": "Log in as librarian",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "description": "Who may call it: anyone. Signs in as Nusrat Jahan (librarian).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"librarian@northsouth.edu\",\n  \"password\": \"password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Log in as student",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "description": "Who may call it: anyone. Signs in as Sadia Islam (student, 300 Tk unpaid, borrowing blocked). Other students: rahim@, fatima@, maliha@northsouth.edu.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"sadia@northsouth.edu\",\n  \"password\": \"password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "My account",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/me",
+            "description": "Who may call it: both. Shows who you are signed in as."
+          }
+        },
+        {
+          "name": "Update my account",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/me",
+            "description": "Who may call it: both.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"01799999999\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/register",
+            "description": "Who may call it: anyone. Creates a student account with status pending.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Student\",\n  \"email\": \"test@northsouth.edu\",\n  \"password\": \"password\",\n  \"student_no\": \"2211000099\",\n  \"phone\": \"01710000099\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Log out",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/logout",
+            "description": "Who may call it: both. Answers 204 with no body."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Members and cards",
+      "item": [
+        {
+          "name": "List pending members",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/accounts?status=pending",
+            "description": "Who may call it: librarian. Seed: Shafin (account 10) is pending."
+          }
+        },
+        {
+          "name": "One member",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/accounts/5",
+            "description": "Who may call it: librarian."
+          }
+        },
+        {
+          "name": "Approve member",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/accounts/10",
+            "description": "Who may call it: librarian. Also: suspended, deactivated.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Issue card",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/accounts/10/cards",
+            "description": "Who may call it: librarian. An existing active card becomes replaced."
+          }
+        },
+        {
+          "name": "Report my card lost",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/me/card",
+            "description": "Who may call it: student.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"lost\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Lost cards",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/cards?status=lost",
+            "description": "Who may call it: librarian."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Catalogue",
+      "item": [
+        {
+          "name": "List books",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/books",
+            "description": "Who may call it: both. Already built."
+          }
+        },
+        {
+          "name": "Search books",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/books?q=tagore&genre=7",
+            "description": "Who may call it: both."
+          }
+        },
+        {
+          "name": "One book",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/books/9",
+            "description": "Who may call it: both. Seed: every copy of book 9 is out."
+          }
+        },
+        {
+          "name": "ISBN lookup",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/isbn/9780547928227",
+            "description": "Who may call it: librarian. Asks Open Library; saves nothing."
+          }
+        },
+        {
+          "name": "Add book",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/books",
+            "description": "Who may call it: librarian.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isbn\": \"9780547928227\",\n  \"title\": \"The Hobbit (new edition)\",\n  \"title_banglish\": null,\n  \"publisher\": \"Houghton Mifflin\",\n  \"published_year\": 2012,\n  \"genre_id\": 8,\n  \"description\": \"A hobbit joins a quest to win back a dragon's treasure.\",\n  \"author_ids\": [\n    7\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Edit book",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/books/8",
+            "description": "Who may call it: librarian.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"publisher\": \"George Allen & Unwin\",\n  \"published_year\": 1937\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete book",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/books/31",
+            "description": "Who may call it: librarian. Book 31 is the one made by Add book. A book whose copies were lent gives 409 (try book 8)."
+          }
+        },
+        {
+          "name": "Add copy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/books/9/copies",
+            "description": "Who may call it: librarian.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"barcode\": \"C0050\",\n  \"shelf_mark\": \"FA-02\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Withdraw copy",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/copies/2",
+            "description": "Who may call it: librarian. A copy on loan cannot be withdrawn (409).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"withdrawn\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List authors",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/authors",
+            "description": "Who may call it: both."
+          }
+        },
+        {
+          "name": "Add author",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/authors",
+            "description": "Who may call it: librarian.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Humayun Ahmed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Rename author",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/authors/3",
+            "description": "Who may call it: librarian.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nelle Harper Lee\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List genres",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/genres",
+            "description": "Who may call it: both."
+          }
+        },
+        {
+          "name": "Add genre",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/genres",
+            "description": "Who may call it: librarian.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Poetry\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Rename genre",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/genres/2",
+            "description": "Who may call it: librarian.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Classic Literature\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Loans",
+      "item": [
+        {
+          "name": "Issue a book",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/loans",
+            "description": "Who may call it: librarian. Seed: Maliha (2211000049) has 2 books out, so a third is allowed. Try student_no 2211000045 (Sadia) to see 409.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"copy_barcode\": \"C0001\",\n  \"student_no\": \"2211000049\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Return a book",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/loans/2/return",
+            "description": "Who may call it: librarian. Seed: loan 2 is Fatima's, 5 days overdue. A second return gives 409. Try loan 9 (a Harry Potter copy): the two students waiting for book 9 are notified."
+          }
+        },
+        {
+          "name": "Ask to renew",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/loans/1/renewal",
+            "description": "Who may call it: student. Seed: loan 1 is Rahim's, not yet due."
+          }
+        },
+        {
+          "name": "Renewal verdict",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/loans/7/renewal/verdict",
+            "description": "Who may call it: librarian. Seed: loan 7 has a renewal request. Also: declined.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"approved\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List loans",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/loans",
+            "description": "Who may call it: both. Students get their own; librarians get all."
+          }
+        },
+        {
+          "name": "Overdue loans",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/loans?status=overdue",
+            "description": "Who may call it: librarian."
+          }
+        },
+        {
+          "name": "Renewal requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/loans?renewal=requested",
+            "description": "Who may call it: librarian."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Holds",
+      "item": [
+        {
+          "name": "Place a hold",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/holds",
+            "description": "Who may call it: student. Seed: every copy of book 9 is out.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"book_id\": 9\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cancel a hold",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/holds/1",
+            "description": "Who may call it: student.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"cancelled\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List holds",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/holds?book_id=9",
+            "description": "Who may call it: both."
+          }
+        },
+        {
+          "name": "Books that are back",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/holds?status=ready",
+            "description": "Who may call it: student. Holds whose book has come back. Shown on the student's home page as a notice."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Fines",
+      "item": [
+        {
+          "name": "List fines",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/fines",
+            "description": "Who may call it: both. Students get their own; librarians get all."
+          }
+        },
+        {
+          "name": "Unpaid fines",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/fines?status=unpaid",
+            "description": "Who may call it: both."
+          }
+        },
+        {
+          "name": "Fines that block borrowing",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/fines?status=blocking",
+            "description": "Who may call it: librarian. Seed: Sadia, loan 4."
+          }
+        },
+        {
+          "name": "Record a payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/fines",
+            "description": "Who may call it: librarian. The server reads the amount from loan_fine_status. A second payment gives 409.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loan_id\": 4\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Smart Discovery (later)",
+      "item": [
+        {
+          "name": "Search by meaning",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/books?q=boy adrift with a tiger&mode=meaning",
+            "description": "Who may call it: both."
+          }
+        },
+        {
+          "name": "Similar books",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/books/7/similar",
+            "description": "Who may call it: both."
+          }
+        },
+        {
+          "name": "Recommendations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Referer",
+                "value": "{{frontendUrl}}"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/recommendations",
+            "description": "Who may call it: student."
+          }
+        }
+      ]
+    }
+  ]
+}
